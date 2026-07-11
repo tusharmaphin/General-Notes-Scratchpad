@@ -1,0 +1,43 @@
+(async function() {
+  const titleId = 'tt0386676'; // The Office (US)
+  const maxSeasons = 9;
+  const results = [];
+
+  for (let s = 1; s <= maxSeasons; s++) {
+    const url = `https://www.imdb.com/title/${titleId}/episodes/?season=${s}`;
+    try {
+      const res = await fetch(url);
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+
+      const cards = doc.querySelectorAll('article.episode-item-wrapper, [data-testid="poster-cta"] article, article');
+
+      let epNum = 0;
+      cards.forEach(card => {
+        const titleEl = card.querySelector('a[data-testid="title"], .ipc-title__text, h4');
+        const ratingEl = card.querySelector('.ipc-rating-star--rating, [data-testid="ratingGroup--imdb-rating"] span');
+        if (!titleEl) return;
+        epNum++;
+        results.push({
+          episodeId: `S${String(s).padStart(2,'0')}E${String(epNum).padStart(2,'0')}`,
+          title: titleEl.textContent.trim().replace(/^\d+\.\s*/, ''),
+          rating: ratingEl ? ratingEl.textContent.trim() : 'N/A'
+        });
+      });
+      console.log(`Season ${s}: ${epNum} episodes parsed`);
+    } catch (e) {
+      console.error(`Season ${s} failed:`, e);
+    }
+    await new Promise(r => setTimeout(r, 800));
+  }
+
+  let csv = 'Episode_ID,Title,Rating\n';
+  results.forEach(r => csv += `${r.episodeId},"${r.title}",${r.rating}\n`);
+  console.log(csv);
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'the_office_ratings.csv';
+  link.click();
+})();
